@@ -29,17 +29,25 @@ export class YandexBusinessClient {
     if (!Array.isArray(list?.companies) || !list.pager) {
       throw new ProviderError('PROVIDER_CONTRACT_CHANGED', 'Yandex branches response has an unexpected structure');
     }
-    return {
-      pager: { limit: list.pager.limit, offset: list.pager.offset, total: list.pager.total },
-      locations: list.companies.map((company) => normalizeLocation(company, chainId))
-    };
+    try {
+      return {
+        pager: { limit: list.pager.limit, offset: list.pager.offset, total: list.pager.total },
+        locations: list.companies.map((company) => normalizeLocation(company, chainId))
+      };
+    } catch (error) {
+      throw this.#contractChanged('Yandex branches response cannot be normalized', error);
+    }
   }
 
   async listReviews({ locationId, page = 1, ranking = 'by_time', unread }) {
     const query = new URLSearchParams({ page: String(page), ranking });
     if (unread !== undefined) query.set('unread', String(unread));
     const payload = await this.#getJson(`/sprav/api/${encodeURIComponent(locationId)}/reviews?${query}`);
-    return normalizeReviewPage(payload);
+    try {
+      return normalizeReviewPage(payload);
+    } catch (error) {
+      throw this.#contractChanged('Yandex reviews response cannot be normalized', error);
+    }
   }
 
   async writeReply({ locationId, reviewId, text }) {
@@ -56,7 +64,12 @@ export class YandexBusinessClient {
     if (item.owner_comment?.text === text) return { outcome: 'ALREADY_APPLIED', moderationStatus: item.owner_comment.moderation_status };
     if (item.owner_comment) throw new ProviderError('PROVIDER_CONTRACT_CHANGED', 'Review already has a different owner reply; edit is out of M0 scope');
 
-    const tokens = extractReplyTokens(current, reviewId);
+    let tokens;
+    try {
+      tokens = extractReplyTokens(current, reviewId);
+    } catch (error) {
+      throw new ProviderError('CSRF_INVALID', 'Fresh Yandex review CSRF values are unavailable for the controlled write', { cause: error });
+    }
     const headers = this.writeHeadersProvider();
     if (!headers['x-csrf-token'] || !headers['X-Yandex-ICookie']) {
       throw new ProviderError('CSRF_INVALID', 'Fresh request CSRF and Yandex ICookie values are required for a controlled write');
@@ -124,7 +137,12 @@ export class YandexBusinessClient {
   #throwForResponse(response, message) {
     const status = response.status();
     if (status === 401 || status === 403) throw new AuthRequiredError(message, { status });
+    if (status === 488) throw new ProviderError('CSRF_INVALID', message, { status });
     if (status === 429) throw new ProviderError('RATE_LIMITED', message, { status });
     throw new ProviderError('PROVIDER_TEMPORARY_ERROR', message, { status });
+  }
+
+  #contractChanged(message, cause) {
+    return new ProviderError('PROVIDER_CONTRACT_CHANGED', message, { cause });
   }
 }

@@ -20,6 +20,31 @@ test('uses the observed pagination query and normalizes the response', async () 
   assert.equal(result.pager.offset, 20);
 });
 
+test('maps an unexpected reviews response to PROVIDER_CONTRACT_CHANGED', async () => {
+  const client = new YandexBusinessClient({ get: async () => response({ json: { list: { items: [] } } }) });
+  await assert.rejects(
+    client.listReviews({ locationId: '116' }),
+    (error) => error.category === 'PROVIDER_CONTRACT_CHANGED'
+  );
+});
+
+test('maps a missing fresh review token to CSRF_INVALID without posting', async () => {
+  const payload = { list: { csrf_token: 'reviews', pager: { limit: 20, offset: 0, total: 1 }, items: [{ id: 'r-1', object: { id: '/sprav/116' } }] } };
+  const client = new YandexBusinessClient({
+    get: async () => response({ json: payload }),
+    post: async () => assert.fail('must not post')
+  }, { writeHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
+  await assert.rejects(
+    client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' }),
+    (error) => error.category === 'CSRF_INVALID'
+  );
+});
+
+test('maps an observed CSRF rejection status to CSRF_INVALID', async () => {
+  const client = new YandexBusinessClient({ get: async () => response({ status: 488 }) });
+  await assert.rejects(client.checkConnection(), (error) => error.category === 'CSRF_INVALID');
+});
+
 test('reconciles an unknown write outcome without retrying the POST', async () => {
   let getCalls = 0;
   let postCalls = 0;
