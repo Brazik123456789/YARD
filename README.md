@@ -41,9 +41,12 @@ Playwright BrowserContext
 Перед разработкой обязательно читать:
 
 - [`AGENTS.md`](./AGENTS.md) — обязательные правила для Codex и coding agents;
+- [`docs/CODEX_HANDOFF_PROTOCOL.md`](./docs/CODEX_HANDOFF_PROTOCOL.md) — **канонический процесс Issue → branch → review → READY FOR PR → final PR → merge**;
 - [`docs/YARD_TZ_v0.3.md`](./docs/YARD_TZ_v0.3.md) — актуальное продуктовое и архитектурное ТЗ;
-- [`docs/DEVELOPMENT_WORKFLOW.md`](./docs/DEVELOPMENT_WORKFLOW.md) — процесс разработки через GitHub Issues, Codex Cloud и Pull Requests;
-- [`docs/discovery/YANDEX_DISCOVERY.md`](./docs/discovery/YANDEX_DISCOVERY.md) — результаты технического discovery Яндекс.Бизнеса.
+- [`docs/Yard_Development_Workflow_v0.2.md`](./docs/Yard_Development_Workflow_v0.2.md) — расширенное описание процесса разработки;
+- [`discovery/YANDEX_DISCOVERY.md`](./discovery/YANDEX_DISCOVERY.md) — результаты технического discovery Яндекс.Бизнеса.
+
+Если старые примеры workflow противоречат `docs/CODEX_HANDOFF_PROTOCOL.md`, **приоритет имеет `CODEX_HANDOFF_PROTOCOL.md`**.
 
 ## Ключевой архитектурный принцип
 
@@ -103,10 +106,12 @@ yard/
 ├── .env.example
 │
 ├── docs/
+│   ├── CODEX_HANDOFF_PROTOCOL.md
 │   ├── YARD_TZ_v0.3.md
-│   ├── DEVELOPMENT_WORKFLOW.md
-│   └── discovery/
-│       └── YANDEX_DISCOVERY.md
+│   └── Yard_Development_Workflow_v0.2.md
+│
+├── discovery/
+│   └── YANDEX_DISCOVERY.md
 │
 ├── backend/
 ├── frontend/
@@ -118,31 +123,41 @@ yard/
 
 ## Development workflow
 
-Основной процесс разработки:
+Канонический процесс разработки — **Issue-first / PR-late**:
 
 ```text
 ChatGPT / Product discussion
         ↓
-GitHub Issue
-        ↓
-Codex Cloud Task
+GitHub Issue OPEN
         ↓
 Dedicated Branch
         ↓
-Commits
+Codex commits + status в Issue
         ↓
-Pull Request
+ChatGPT review branch / commits / tests
         ↓
-CI
+Codex fixes в той же branch
         ↓
-Independent Review
+повторять до готовности
         ↓
-Fixes
+ChatGPT: READY FOR PR
+        ↓
+ОДИН финальный Pull Request
+        ↓
+final CI / review
         ↓
 Merge
+        ↓
+Issue CLOSED
+        ↓
+следующий Issue
 ```
 
-`main` не должен использоваться для прямой разработки.
+**PR не создаётся в начале задачи.** Он появляется только после решения ChatGPT `READY FOR PR`, когда основная разработка и review уже завершены в branch.
+
+Текущий `Issue #1 / PR #3` — историческое исключение, возникшее до фиксации этого правила. Начиная со следующей основной задачи применяется только новый процесс.
+
+`main` не должен использоваться для прямой продуктовой разработки.
 
 ## Secrets
 
