@@ -12,6 +12,8 @@ Yard («Ярд») — SaaS/AI-сервис для работы бизнеса с
 
 Проект находится на старте разработки.
 
+Текущий основной roadmap хранится в [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md).
+
 Первый технический milestone:
 
 **M0 — Yandex Connector PoC**
@@ -43,10 +45,13 @@ Playwright BrowserContext
 - [`AGENTS.md`](./AGENTS.md) — обязательные правила для Codex и coding agents;
 - [`docs/CODEX_HANDOFF_PROTOCOL.md`](./docs/CODEX_HANDOFF_PROTOCOL.md) — **канонический процесс Issue → branch → review → READY FOR PR → final PR → merge**;
 - [`docs/YARD_TZ_v0.3.md`](./docs/YARD_TZ_v0.3.md) — актуальное продуктовое и архитектурное ТЗ;
+- [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) — **канонический master roadmap: текущий milestone, следующие этапы и Definition of Done**;
 - [`docs/Yard_Development_Workflow_v0.2.md`](./docs/Yard_Development_Workflow_v0.2.md) — расширенное описание процесса разработки;
 - [`discovery/YANDEX_DISCOVERY.md`](./discovery/YANDEX_DISCOVERY.md) — результаты технического discovery Яндекс.Бизнеса.
 
 Если старые примеры workflow противоречат `docs/CODEX_HANDOFF_PROTOCOL.md`, **приоритет имеет `CODEX_HANDOFF_PROTOCOL.md`**.
+
+Если старые предварительные списки milestones противоречат `docs/IMPLEMENTATION_PLAN.md`, **для порядка реализации приоритет имеет `IMPLEMENTATION_PLAN.md`**, пока это не меняет продуктовый scope или архитектурные инварианты из `YARD_TZ_v0.3.md`.
 
 ## Ключевой архитектурный принцип
 
@@ -107,6 +112,7 @@ yard/
 │
 ├── docs/
 │   ├── CODEX_HANDOFF_PROTOCOL.md
+│   ├── IMPLEMENTATION_PLAN.md
 │   ├── YARD_TZ_v0.3.md
 │   └── Yard_Development_Workflow_v0.2.md
 │
@@ -119,7 +125,7 @@ yard/
 └── 2gis-worker/
 ```
 
-Структура исходного кода может уточняться в ходе M0 и implementation planning.
+Структура исходного кода может уточняться в ходе реализации roadmap.
 
 ## Development workflow
 
@@ -157,7 +163,7 @@ Issue CLOSED
 
 Текущий `Issue #1 / PR #3` — историческое исключение, возникшее до фиксации этого правила. Начиная со следующей основной задачи применяется только новый процесс.
 
-`main` не должен использоваться для прямой продуктовой разработки.
+`main` не должен использоваться для прямой продуктовой разработки. Документационные source-of-truth изменения могут вноситься координатором напрямую, когда это явно согласовано.
 
 ## Secrets
 
