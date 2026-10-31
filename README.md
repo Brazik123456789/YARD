@@ -42,8 +42,8 @@ Playwright BrowserContext
 
 - [`AGENTS.md`](./AGENTS.md) — обязательные правила для Codex и coding agents;
 - [`docs/YARD_TZ_v0.3.md`](./docs/YARD_TZ_v0.3.md) — актуальное продуктовое и архитектурное ТЗ;
-- [`docs/DEVELOPMENT_WORKFLOW.md`](./docs/DEVELOPMENT_WORKFLOW.md) — процесс разработки через GitHub Issues, Codex Cloud и Pull Requests;
-- [`docs/discovery/YANDEX_DISCOVERY.md`](./docs/discovery/YANDEX_DISCOVERY.md) — результаты технического discovery Яндекс.Бизнеса.
+- [`docs/Yard_Development_Workflow_v0.2.md`](./docs/Yard_Development_Workflow_v0.2.md) — процесс разработки через GitHub Issues, Codex Cloud и Pull Requests;
+- [`discovery/YANDEX_DISCOVERY.md`](./discovery/YANDEX_DISCOVERY.md) — результаты технического discovery Яндекс.Бизнеса.
 
 ## Ключевой архитектурный принцип
 
