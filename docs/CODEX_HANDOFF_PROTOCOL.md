@@ -1,106 +1,167 @@
 # Codex ↔ ChatGPT GitHub Handoff Protocol
 
-**Статус:** обязательный процесс разработки Yard  
+**Статус:** обязательный и канонический процесс разработки Yard  
 **Дата:** 1 ноября 2026  
-**Область:** GitHub Issues, Codex Cloud, Pull Requests, review и merge
+**Область:** GitHub Issues, Codex Cloud, branches, review, Pull Requests и merge
+
+> Если этот документ противоречит более старым разделам `docs/Yard_Development_Workflow_v0.2.md` или старым примерам в других документах, **этот документ имеет приоритет для lifecycle Issue / branch / PR / merge**.
 
 ---
 
-## 1. Назначение
+## 1. Главный принцип
 
-Этот документ фиксирует, как ChatGPT и Codex передают работу друг другу через GitHub без ручного копирования длинных сообщений Азаматом.
-
-Главный принцип:
+Для Yard используется **Issue-first / PR-late workflow**.
 
 ```text
-Issue = постановка задачи + статус + handoff
-PR = фактический код + code review
+Issue = вся рабочая жизнь задачи
+Branch = фактическая разработка
+PR = финальный merge gate, создаётся только когда задача уже готова
 ```
 
-Азамат не должен быть ручным транспортом между ChatGPT и Codex.
+Pull Request **не создаётся в начале задачи и не используется как основной рабочий канал промежуточных исправлений**.
+
+Один Issue остаётся открытым от постановки задачи до успешного merge соответствующей реализации.
 
 ---
 
-## 2. Роли
+## 2. Канонический lifecycle задачи
+
+```text
+ChatGPT + Азамат принимают решение
+        ↓
+ChatGPT создаёт GitHub Issue
+        ↓
+Codex создаёт/использует dedicated branch
+        ↓
+Codex реализует задачу
+        ↓
+Codex push commits
+        ↓
+Codex пишет status report в Issue
+        ↓
+ChatGPT независимо проверяет branch / commits / tests / CI
+        ↓
+если есть замечания — ChatGPT пишет их в Issue
+        ↓
+Codex продолжает в ТОЙ ЖЕ branch
+        ↓
+новые commits + новый status report в Issue
+        ↓
+цикл повторяется столько раз, сколько нужно
+        ↓
+ChatGPT принимает решение READY FOR PR
+        ↓
+создаётся ОДИН финальный Pull Request
+        ↓
+финальная проверка diff / tests / CI / mergeability
+        ↓
+ChatGPT выполняет merge
+        ↓
+Issue закрывается
+        ↓
+ChatGPT создаёт следующий Issue
+```
+
+До решения `READY FOR PR` Codex **не должен создавать PR**, если ChatGPT явно не дал другую инструкцию.
+
+---
+
+## 3. Роли
 
 ### Азамат
 
 - принимает продуктовые решения;
-- запускает Codex Cloud task короткой командой;
-- подключается, когда требуется ручной real-provider test, продуктовый выбор или явное разрешение внешнего write;
-- не обязан вручную переносить review findings, отчёты или технические задания между ChatGPT и Codex.
+- запускает Codex Cloud короткой командой вида `Посмотри Issue #N и продолжай работу по нему`;
+- подключается для ручного real-provider теста, продуктового выбора или явного разрешения внешнего write;
+- не переносит вручную длинные задания, review findings и отчёты между ChatGPT и Codex;
+- не обязан самостоятельно управлять branches/PR/merge, пока GitHub connection ChatGPT это позволяет.
 
 ### ChatGPT
 
 - ведёт GitHub Issues как технический координатор;
-- формулирует scope и Acceptance Criteria;
-- определяет активный PR/branch;
-- закрывает дубликаты;
-- независимо проверяет код, diff, tests и CI;
-- фиксирует findings в PR;
-- фиксирует координационные решения в Issue;
-- решает, нужен ли следующий цикл исправлений;
-- выполняет merge только когда gate действительно закрыт.
+- формулирует scope, boundaries и Acceptance Criteria;
+- определяет, какая branch является рабочей;
+- независимо проверяет commits, код, tests и CI;
+- пишет findings и следующие инструкции в Issue;
+- решает, когда задача достигла состояния `READY FOR PR`;
+- только после этого создаёт/разрешает создать финальный PR;
+- выполняет финальный review и merge;
+- закрывает Issue после merge, если он не закрылся автоматически;
+- создаёт следующий Issue только после завершения предыдущей основной задачи, кроме явно согласованной параллельной работы.
 
 ### Codex
 
-- читает Issue и все указанные project docs;
-- реализует задачу в выделенной branch;
-- создаёт или обновляет ровно тот PR, который относится к Issue;
-- читает последние review comments;
-- исправляет findings в той же branch/PR;
-- после каждого рабочего прохода оставляет итоговый status report в связанном Issue.
+- читает `AGENTS.md`, этот protocol, Issue и referenced project docs;
+- работает в dedicated branch;
+- push commits в эту branch;
+- после каждого implementation/fix pass пишет status report в Issue;
+- читает последние замечания из Issue и продолжает ту же branch;
+- **не создаёт PR до команды/статуса `READY FOR PR`**;
+- после создания финального PR не merge самостоятельно;
+- не создаёт дополнительную branch/PR для того же Issue без явной команды.
 
 ---
 
-## 3. Что хранится в Issue
+## 4. Issue = основной рабочий канал
 
-Issue является основным coordination thread задачи.
+Issue является главным coordination thread задачи на всём протяжении разработки.
 
-В Issue должны находиться:
+В Issue находятся:
 
 - Goal;
 - Context;
 - Requirements;
 - Out of Scope;
 - Acceptance Criteria;
-- ссылки на обязательные документы;
-- текущий активный PR/branch;
+- обязательные документы;
+- имя рабочей branch;
+- status reports Codex;
+- review findings ChatGPT;
 - blockers;
-- важные coordination decisions;
-- status reports Codex после каждого прохода.
+- решения по спорным вопросам;
+- отметка `READY FOR PR`, когда ChatGPT считает реализацию готовой;
+- итог merge/закрытие.
 
-Issue не заменяет PR diff, но хранит понятное состояние задачи.
+Issue остаётся **OPEN**, пока код не прошёл финальный merge.
 
----
-
-## 4. Что хранится в Pull Request
-
-PR является источником истины о фактической реализации.
-
-PR содержит:
-
-- commits;
-- diff;
-- tests/CI;
-- implementation summary;
-- code-review findings;
-- обсуждение конкретных проблем реализации.
-
-ChatGPT никогда не считает задачу готовой только на основании отчёта Codex в Issue. Фактический код и проверки должны быть просмотрены независимо.
+Не закрывать Issue только потому, что Codex написал код или считает задачу готовой.
 
 ---
 
-## 5. Обязательный status report Codex
+## 5. Branch = фактическая разработка до PR
 
-После каждого прохода Codex обязан оставить комментарий в связанном GitHub Issue.
+Для каждого Issue используется одна основная dedicated branch, если нет явной причины иначе.
 
-Минимальный шаблон:
+Пример:
+
+```text
+codex/7-review-domain
+```
+
+До финального PR ChatGPT проверяет:
+
+- новые commits;
+- compare/diff branch относительно `main`;
+- конкретные изменённые файлы;
+- tests;
+- CI, если workflow запускается для branch/push;
+- соответствие Issue и документации.
+
+Follow-up fixes делаются в **той же branch**.
+
+Новый Codex Cloud task не означает новую branch. Новый task должен продолжать существующую branch задачи, если Issue не говорит обратного.
+
+---
+
+## 6. Обязательный status report Codex
+
+После каждого implementation/fix pass Codex обязан оставить комментарий в связанном Issue.
+
+До появления PR шаблон такой:
 
 ```text
 ## Codex status
 
-PR: #<number>
 Branch: <branch>
 Commit: <sha>
 
@@ -112,24 +173,31 @@ Review findings addressed:
 
 Tests:
 - command → result
-- command → result
 
 CI:
-- status / link / not available
+- status / not applicable
 
 Still open / blocked:
 - ...
 
-Ready for independent review: YES / NO
+Ready for coordinator review: YES / NO
 ```
 
-Если Codex не может написать комментарий из-за GitHub permissions/API restrictions, он обязан явно сообщить об этом в своём финальном ответе. Тогда ChatGPT переносит status в Issue вручную, а ограничение фиксируется как tooling limitation.
+После того как финальный PR уже создан, дополнительно указывается:
+
+```text
+PR: #<number>
+```
+
+Status report Codex является handoff, но не доказательством качества. ChatGPT всегда проверяет фактический код самостоятельно.
 
 ---
 
-## 6. Review flow
+## 7. Review до PR
 
-После status report ChatGPT выполняет независимый review:
+Основной технический review происходит **до создания PR**.
+
+ChatGPT сверяет минимум:
 
 ```text
 Issue
@@ -140,18 +208,14 @@ YARD_TZ
 +
 relevant discovery / ADR
 +
-PR diff
+branch commits / compare with main
 +
 actual code
 +
-tests
-+
-CI
+tests / CI
 ```
 
-Findings фиксируются в PR.
-
-Приоритеты:
+Findings пишутся в Issue с приоритетом:
 
 ```text
 BLOCKER
@@ -160,114 +224,118 @@ MEDIUM
 LOW
 ```
 
-Координационные решения, например какой PR считать основным или что предыдущий PR закрыт как duplicate, дополнительно фиксируются в Issue.
+Codex затем исправляет их в той же branch и снова пишет status report в Issue.
+
+Цикл может повторяться много раз без создания PR.
 
 ---
 
-## 7. Follow-up fixes
+## 8. READY FOR PR
 
-Если ChatGPT нашёл проблемы:
+Только ChatGPT как технический координатор определяет, что задача готова к Pull Request.
 
-- Codex продолжает работу в существующей branch;
-- обновляет существующий PR;
-- не создаёт новый PR для того же Issue без явной команды;
-- после исправлений снова пишет status report в Issue;
-- ChatGPT повторяет review.
-
-Цикл:
+Признак готовности фиксируется в Issue явно, например:
 
 ```text
-Issue
-↓
-Codex
-↓
-existing branch
-↓
-existing PR
-↓
-status report in Issue
-↓
-ChatGPT review
-↓
-findings
-↓
-Codex fixes
-↓
-status report
-↓
-review again
+READY FOR PR
+
+Branch прошла независимый review.
+BLOCKER/HIGH findings закрыты.
+Automated tests/CI green.
+Создать один финальный PR в main и не merge.
+```
+
+До такого сообщения Codex не должен создавать PR самостоятельно.
+
+---
+
+## 9. Pull Request = финальный merge gate
+
+После `READY FOR PR` создаётся **один** Pull Request для данного Issue.
+
+PR нужен для:
+
+- финального целостного diff;
+- финального CI;
+- mergeability/conflict check;
+- итоговой связи с Issue;
+- merge в `main`.
+
+PR не должен становиться новым многодневным рабочим backlog, если это можно было решить до его создания.
+
+Если на финальном PR обнаружена небольшая проблема, допустим один короткий fix pass в той же branch/PR. Если обнаружена существенная недоработка, Issue остаётся открытым до её устранения.
+
+PR body должен связывать задачу с Issue, например:
+
+```text
+Closes #7
 ```
 
 ---
 
-## 8. Команда Азамата Codex
+## 10. Merge и закрытие Issue
 
-После того как Issue подготовлен, команда может быть минимальной:
+Merge выполняется только когда:
+
+- Acceptance Criteria выполнены либо явно принят внешний blocker;
+- BLOCKER/HIGH findings закрыты;
+- tests проходят;
+- CI green, если применим;
+- secrets отсутствуют;
+- архитектурные инварианты соблюдены;
+- documentation updated;
+- финальный PR проверен ChatGPT.
+
+По умолчанию merge выполняет ChatGPT через GitHub connection.
+
+Если GitHub connection не позволяет merge, ChatGPT говорит Азамату конкретно:
+
+```text
+PR #N готов. Можно merge.
+```
+
+После успешного merge:
+
+1. Issue закрывается автоматически через `Closes #N` либо ChatGPT закрывает его вручную;
+2. фиксируется итог, если необходимо;
+3. только затем создаётся следующий основной Issue.
+
+---
+
+## 11. Команда Азамата Codex
+
+Обычная команда должна оставаться максимально короткой:
 
 ```text
 Посмотри GitHub Issue #<N> и продолжай работу по нему.
 ```
 
-Codex обязан сам:
+Codex обязан сам из Issue понять:
 
-- прочитать Issue;
-- прочитать referenced docs;
-- определить указанный активный PR/branch;
-- прочитать последние review comments;
-- выполнить работу;
-- зафиксировать результат в GitHub.
+- что делать;
+- какую branch продолжать;
+- какие findings закрыть;
+- какие документы прочитать;
+- нужен ли уже PR или PR пока запрещён.
 
-Азамат не должен копировать длинные prompts между системами.
-
----
-
-## 9. Duplicate tasks / PRs
-
-Если случайно запущено несколько Cloud Tasks на один Issue:
-
-- ChatGPT выбирает одну основную реализацию;
-- лучший PR/branch остаётся активным;
-- остальные PR закрываются как duplicate;
-- дальнейшая работа продолжается только в основном PR;
-- решение фиксируется в Issue.
-
-Не merge две независимые реализации одной задачи без отдельной причины.
+Азамат не должен копировать содержимое Issue или review вручную.
 
 ---
 
-## 10. Merge gate
-
-PR разрешено merge только после независимой проверки.
-
-Минимум:
-
-- Acceptance Criteria выполнены либо явно зафиксирован допустимый внешний blocker;
-- BLOCKER/HIGH findings закрыты;
-- automated tests проходят;
-- CI проходит, если применим;
-- secrets отсутствуют;
-- архитектурные инварианты соблюдены;
-- документация обновлена;
-- Codex оставил финальный status report;
-- ChatGPT проверил фактический код.
-
-Codex не выполняет merge самостоятельно без явного изменения этого правила.
-
----
-
-## 11. Разделение каналов
-
-Использовать следующий принцип:
+## 12. Разделение каналов
 
 ```text
 Issue comments
-= coordination + status + blockers + handoff
+= task scope + coordination + status + findings + blockers + handoff
 
-PR review/comments
-= code findings + implementation discussion
+Branch / commits
+= фактическая разработка до финального PR
+
+Final Pull Request
+= final diff + CI + merge gate
 
 Repository docs
-= долговременные правила и архитектура
+= долговременные правила, продукт и архитектура
 
 Codex chat
 = временный runtime conversation, не source of truth
@@ -277,31 +345,90 @@ Codex chat
 
 ---
 
-## 12. Tooling limitations
+## 13. Duplicate branches / PRs
 
-Git push и GitHub API permissions могут отличаться.
+Для одного Issue по умолчанию должна быть одна рабочая branch и один финальный PR.
 
-Например, Codex может иметь возможность push в branch, но не иметь возможности:
+Если случайно появились дубли:
 
-- изменить PR description;
-- оставить Issue comment;
-- менять labels/metadata.
+- ChatGPT выбирает одну основную branch;
+- лишние PR закрываются как duplicate;
+- лишние branches не используются для дальнейшей работы;
+- дальнейшие инструкции фиксируются в Issue.
 
-Такая ошибка не считается ошибкой реализации, если код успешно pushed.
-
-В этом случае:
-
-1. Codex сообщает точную недоступную GitHub operation;
-2. не создаёт обходной новый PR;
-3. ChatGPT выполняет доступную metadata-operation через своё GitHub connection;
-4. разработка продолжается в том же PR.
+Codex не создаёт duplicate PR как workaround для API/permission ошибки.
 
 ---
 
-## 13. Итоговый принцип
+## 14. Tooling limitations
 
-> Issue говорит, что нужно сделать и где сейчас находится задача.  
-> Codex пишет код и возвращает status в Issue.  
-> PR показывает, что реально изменено.  
-> ChatGPT независимо проверяет код и управляет review/merge.  
-> Азамат принимает продуктовые решения, но не переносит технические сообщения вручную.
+Git push и GitHub API permissions могут отличаться.
+
+Если Codex не может:
+
+- оставить Issue comment;
+- изменить metadata;
+- создать финальный PR после `READY FOR PR`;
+
+он обязан:
+
+1. явно сообщить точную недоступную operation;
+2. не создавать обходные дубли;
+3. сохранить код в основной branch задачи;
+4. дать ChatGPT выполнить metadata/PR operation через его GitHub connection.
+
+---
+
+## 15. Параллельные задачи
+
+По умолчанию Yard ведётся последовательно:
+
+```text
+Issue N
+→ готовность
+→ final PR
+→ merge
+→ close Issue N
+→ Issue N+1
+```
+
+Параллельный Issue разрешён только если ChatGPT и Азамат явно решили, что workstreams независимы и это ускоряет разработку без риска конфликтов.
+
+Не создавать параллельные Issues автоматически.
+
+---
+
+## 16. Переходное правило для текущего M0
+
+`Issue #1 / PR #3` появились до введения Issue-first / PR-late процесса.
+
+Это **историческое исключение**, а не шаблон будущей работы.
+
+Текущий PR #3 можно довести до завершения в существующем виде, чтобы не выбрасывать уже сделанную работу. Начиная со следующей основной задачи применяется только workflow из этого документа.
+
+---
+
+## 17. Восстановление контекста в новом ChatGPT-чате
+
+Если текущий чат закончился или работа продолжена в другом чате, новый ChatGPT должен сначала прочитать минимум:
+
+1. `AGENTS.md`;
+2. `docs/CODEX_HANDOFF_PROTOCOL.md`;
+3. `docs/YARD_TZ_v0.3.md`;
+4. `docs/STATUS.md`, если существует;
+5. активный GitHub Issue и его comments;
+6. текущую рабочую branch / финальный PR, если он уже создан.
+
+После этого новый чат должен продолжать тот же процесс и **не возвращаться к раннему созданию PR**.
+
+---
+
+## 18. Итоговый принцип
+
+> Один Issue живёт всю задачу до merge.  
+> Codex работает и исправляется в branch.  
+> Codex отчитывается в Issue.  
+> ChatGPT проверяет фактический код и ведёт Issue.  
+> PR создаётся только в самом конце, после решения `READY FOR PR`.  
+> После merge Issue закрывается и создаётся следующий Issue.  
+> Азамат даёт Codex только короткие команды и принимает продуктовые решения.
