@@ -1,0 +1,6 @@
+export const AccountState = Object.freeze({
+  DISCONNECTED: 'DISCONNECTED',
+  CONNECTED: 'CONNECTED',
+  AUTH_REQUIRED: 'AUTH_REQUIRED',
+  ERROR: 'ERROR'
+});
