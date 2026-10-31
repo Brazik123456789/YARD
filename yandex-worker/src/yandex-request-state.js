@@ -6,11 +6,12 @@ export class YandexRequestStateCapture {
   constructor(context) {
     this.context = context;
     this.onRequest = this.#capture.bind(this);
+    this.#reset();
     context.on('request', this.onRequest);
   }
 
   async refresh({ timeoutMs = 15_000 } = {}) {
-    this.headers = undefined;
+    this.#reset({ retainHeaders: true });
     const page = this.context.pages()[0] ?? await this.context.newPage();
     const captured = this.#waitForCapture(timeoutMs);
     try {
@@ -23,12 +24,31 @@ export class YandexRequestStateCapture {
     }
   }
 
+  async diagnose({ timeoutMs = 15_000 } = {}) {
+    this.#reset({ retainHeaders: false });
+    const page = this.context.pages()[0] ?? await this.context.newPage();
+    const observed = this.#waitForCapture(timeoutMs);
+    try {
+      await page.goto(PROVIDER_PAGE, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    } catch {
+      // The redacted diagnostic is still useful when authentication redirects or page loading fails.
+    } finally {
+      await observed;
+      this.#finishWait(false);
+    }
+    return this.getDiagnostic();
+  }
+
   getWriteHeaders() {
     if (!this.headers) return undefined;
     return {
       'x-csrf-token': this.headers.csrfToken,
       'X-Yandex-ICookie': this.headers.yandexICookie
     };
+  }
+
+  getDiagnostic() {
+    return { ...this.diagnostic };
   }
 
   dispose() {
@@ -42,9 +62,25 @@ export class YandexRequestStateCapture {
     const headers = request.headers();
     const csrfToken = headers['x-csrf-token'];
     const yandexICookie = headers['x-yandex-icookie'];
+    this.diagnostic.yandexBusinessApiRequestObserved = true;
+    this.diagnostic.requestCsrfTokenObserved ||= Boolean(csrfToken);
+    this.diagnostic.yandexICookieObserved ||= Boolean(yandexICookie);
     if (!csrfToken || !yandexICookie) return;
-    this.headers = { csrfToken, yandexICookie };
+    this.diagnostic.bothRequiredHeadersObserved = true;
+    if (this.retainHeaders) this.headers = { csrfToken, yandexICookie };
     this.#finishWait(true);
+  }
+
+  #reset({ retainHeaders = true } = {}) {
+    this.#finishWait(false);
+    this.headers = undefined;
+    this.retainHeaders = retainHeaders;
+    this.diagnostic = {
+      yandexBusinessApiRequestObserved: false,
+      requestCsrfTokenObserved: false,
+      yandexICookieObserved: false,
+      bothRequiredHeadersObserved: false
+    };
   }
 
   #waitForCapture(timeoutMs) {

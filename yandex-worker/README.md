@@ -35,6 +35,16 @@ npm start -- restore-check
 
 A `401`, `403`, or unexpected non-JSON response transitions the account to `AUTH_REQUIRED`; do not retry write operations.
 
+## Request-state diagnostic
+
+Before considering a controlled reply, run this command in the headed, authenticated browser session:
+
+```bash
+npm start -- request-state-diagnostic
+```
+
+It opens the observed Yandex Business page and reports only whether Business API traffic was observed and whether each required request header was present. It never prints, stores, or persists header values, request URLs, or cookies. A result with any `false` value means the controlled write remains disabled. If all values are `true`, record the request method and endpoint family with identifiers redacted as evidence from the approved local/RU-browser experiment before attempting the separately approved write.
+
 ## Controlled reply
 
 The reply command is deliberately blocked unless both approval environment variables and `--approved-real-write true` are supplied. It refreshes an authenticated Yandex Business page and captures the observed `x-csrf-token` and `X-Yandex-ICookie` only in memory from its BrowserContext. It then rereads the explicitly requested review page, verifies the review belongs to the requested location, obtains `list.csrf_token` and `business_answer_csrf_token` fresh from that response, submits once, and rereads that same page before reporting the outcome. On a timeout/unknown outcome it rereads first and never blindly retries.

@@ -19,3 +19,16 @@ test('stops later operations after authentication loss', async () => {
   await assert.rejects(runtime.execute(async () => { throw new AuthRequiredError(); }), AuthRequiredError);
   await assert.rejects(runtime.execute(async () => 'must not run'), AuthRequiredError);
 });
+
+test('returns only redacted request-state diagnostic evidence', async () => {
+  const runtime = new TechnicalAccountRuntime({ accountId: 'a', sessionDirectory: '/tmp', encryptionSecret: 'secret' });
+  runtime.context = {};
+  runtime.client = {};
+  runtime.requestState = { diagnose: async () => ({ yandexBusinessApiRequestObserved: true, requestCsrfTokenObserved: true, yandexICookieObserved: false, bothRequiredHeadersObserved: false }) };
+  assert.deepEqual(await runtime.diagnoseWriteRequestState(), {
+    yandexBusinessApiRequestObserved: true,
+    requestCsrfTokenObserved: true,
+    yandexICookieObserved: false,
+    bothRequiredHeadersObserved: false
+  });
+});

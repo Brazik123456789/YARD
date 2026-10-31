@@ -42,6 +42,11 @@ export class TechnicalAccountRuntime {
     return this.requestState.refresh();
   }
 
+  async diagnoseWriteRequestState() {
+    this.#requireStarted();
+    return this.requestState.diagnose();
+  }
+
   async execute(operation) {
     this.#requireStarted();
     if (this.state === AccountState.AUTH_REQUIRED) throw new AuthRequiredError();

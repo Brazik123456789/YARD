@@ -5,6 +5,7 @@ const [command, ...rest] = process.argv.slice(2);
 const args = parseArgs(rest);
 const accountId = args.account ?? 'yandex-agent-01';
 const sessionDirectory = path.resolve(args['session-dir'] ?? process.env.YANDEX_SESSION_STATE_DIR ?? 'runtime/yandex-sessions');
+const headless = process.env.YANDEX_BROWSER_HEADLESS === 'true';
 const runtime = new TechnicalAccountRuntime({
   accountId,
   sessionDirectory,
@@ -12,7 +13,8 @@ const runtime = new TechnicalAccountRuntime({
 });
 
 try {
-  await runtime.start({ headless: process.env.YANDEX_BROWSER_HEADLESS === 'true' });
+  if (command === 'request-state-diagnostic' && headless) throw new Error('Request-state diagnostic requires a headed authenticated browser session.');
+  await runtime.start({ headless });
   if (command === 'login') {
     await runtime.openManualLogin();
     console.log('Complete Yandex login in the opened browser, then press Ctrl+C. Session state is saved on shutdown.');
@@ -32,6 +34,7 @@ try {
     restored: true,
     organizations: (await runtime.execute(() => runtime.client.discoverOrganizations())).length
   });
+  if (command === 'request-state-diagnostic') print(await runtime.diagnoseWriteRequestState());
   if (command === 'reply') {
     requireControlledWriteApproval(args);
     const captured = await runtime.refreshWriteRequestState();
@@ -43,7 +46,7 @@ try {
       page: Number(required(args, 'page'))
     })));
   }
-  if (!['login', 'check', 'organizations', 'locations', 'reviews', 'm0-read', 'restore-check', 'reply'].includes(command)) usage();
+  if (!['login', 'check', 'organizations', 'locations', 'reviews', 'm0-read', 'restore-check', 'request-state-diagnostic', 'reply'].includes(command)) usage();
 } finally {
   await runtime.stop().catch(() => {});
 }
@@ -63,7 +66,7 @@ function print(value) {
 }
 
 function usage() {
-  throw new Error('Usage: npm start -- <login|check|organizations|locations|reviews|m0-read|restore-check|reply> [--account ID]');
+  throw new Error('Usage: npm start -- <login|check|organizations|locations|reviews|m0-read|restore-check|request-state-diagnostic|reply> [--account ID]');
 }
 
 async function runManualRead(runtime, values) {
