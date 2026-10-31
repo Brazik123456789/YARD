@@ -19,6 +19,7 @@
 4. `docs/DECISIONS.md`, если существует;
 5. `docs/STATUS.md`, если существует;
 6. relevant discovery documents.
+7. `docs/CODEX_HANDOFF_PROTOCOL.md`.
 
 Не полагаться только на историю Codex task или чат.
 
@@ -736,3 +737,24 @@ Yard authorization
 ```
 
 Это два главных инварианта проекта.
+
+---
+
+# 39. GitHub status handoff
+
+После каждого implementation pass или прохода исправления review findings агент обязан оставить status report в связанном GitHub Issue согласно `docs/CODEX_HANDOFF_PROTOCOL.md`.
+
+В report обязательно указать:
+
+- PR;
+- branch;
+- commit SHA;
+- реализованные изменения;
+- закрытые review findings;
+- tests и CI;
+- blockers / open items;
+- готовность к independent review.
+
+Для follow-up fixes продолжать работу в существующей branch и существующем PR, если явно не дана команда создать новый PR.
+
+Если GitHub API permissions не позволяют оставить Issue comment или обновить metadata, явно сообщить точную tooling limitation в финальном отчёте. Не создавать duplicate PR как обходной путь.
