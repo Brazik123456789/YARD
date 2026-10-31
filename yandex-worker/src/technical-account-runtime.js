@@ -4,13 +4,13 @@ import { AccountState } from './account-state.js';
 import { AuthRequiredError } from './errors.js';
 import { EncryptedSessionStore } from './session-store.js';
 import { YandexBusinessClient } from './yandex-client.js';
+import { YandexRequestStateCapture } from './yandex-request-state.js';
 
 export class TechnicalAccountRuntime {
-  constructor({ accountId, sessionDirectory, encryptionSecret, writeHeadersProvider }) {
+  constructor({ accountId, sessionDirectory, encryptionSecret }) {
     this.accountId = accountId;
     this.sessionDirectory = sessionDirectory;
     this.encryptionSecret = encryptionSecret;
-    this.writeHeadersProvider = writeHeadersProvider;
     this.state = AccountState.DISCONNECTED;
   }
 
@@ -20,7 +20,8 @@ export class TechnicalAccountRuntime {
     const storageState = await this.sessionStore.load();
     this.browser = await chromium.launch({ headless });
     this.context = await this.browser.newContext({ storageState });
-    this.client = new YandexBusinessClient(this.context.request, { writeHeadersProvider: this.writeHeadersProvider });
+    this.requestState = new YandexRequestStateCapture(this.context);
+    this.client = new YandexBusinessClient(this.context.request, { requestHeadersProvider: () => this.requestState.getWriteHeaders() });
     this.state = AccountState.DISCONNECTED;
   }
 
@@ -34,6 +35,11 @@ export class TechnicalAccountRuntime {
   async checkConnection() {
     await this.execute(() => this.client.checkConnection());
     return { state: this.state };
+  }
+
+  async refreshWriteRequestState() {
+    this.#requireStarted();
+    return this.requestState.refresh();
   }
 
   async execute(operation) {
@@ -57,10 +63,12 @@ export class TechnicalAccountRuntime {
   async stop({ saveSession = true } = {}) {
     if (!this.context) return;
     if (saveSession) await this.saveSession();
+    this.requestState.dispose();
     await this.context.close();
     await this.browser.close();
     this.context = undefined;
     this.browser = undefined;
+    this.requestState = undefined;
     this.state = AccountState.DISCONNECTED;
   }
 

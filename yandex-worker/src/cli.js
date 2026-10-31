@@ -8,11 +8,7 @@ const sessionDirectory = path.resolve(args['session-dir'] ?? process.env.YANDEX_
 const runtime = new TechnicalAccountRuntime({
   accountId,
   sessionDirectory,
-  encryptionSecret: process.env.YANDEX_SESSION_STATE_ENCRYPTION_KEY,
-  writeHeadersProvider: () => ({
-    'x-csrf-token': process.env.YANDEX_REQUEST_CSRF_TOKEN,
-    'X-Yandex-ICookie': process.env.YANDEX_I_COOKIE
-  })
+  encryptionSecret: process.env.YANDEX_SESSION_STATE_ENCRYPTION_KEY
 });
 
 try {
@@ -31,11 +27,23 @@ try {
     page: Number(args.page ?? 1)
   })));
   if (command === 'reviews') print(await runtime.execute(() => runtime.client.listReviews({ locationId: required(args, 'location-id'), page: Number(args.page ?? 1), ranking: args.ranking ?? 'by_time' })));
+  if (command === 'm0-read') print(await runManualRead(runtime, args));
+  if (command === 'restore-check') print({
+    restored: true,
+    organizations: (await runtime.execute(() => runtime.client.discoverOrganizations())).length
+  });
   if (command === 'reply') {
-    if (args['allow-write'] !== 'true') throw new Error('Controlled write is disabled; pass --allow-write true after explicit approval.');
-    print(await runtime.execute(() => runtime.client.writeReply({ locationId: required(args, 'location-id'), reviewId: required(args, 'review-id'), text: required(args, 'text') })));
+    requireControlledWriteApproval(args);
+    const captured = await runtime.refreshWriteRequestState();
+    if (!captured) throw new Error('Controlled write remains disabled: the authenticated Yandex Business page did not expose fresh request state. Record only redacted evidence; do not supply request headers manually.');
+    print(await runtime.execute(() => runtime.client.writeReply({
+      locationId: required(args, 'location-id'),
+      reviewId: required(args, 'review-id'),
+      text: required(args, 'text'),
+      page: Number(required(args, 'page'))
+    })));
   }
-  if (!['login', 'check', 'organizations', 'locations', 'reviews', 'reply'].includes(command)) usage();
+  if (!['login', 'check', 'organizations', 'locations', 'reviews', 'm0-read', 'restore-check', 'reply'].includes(command)) usage();
 } finally {
   await runtime.stop().catch(() => {});
 }
@@ -55,5 +63,33 @@ function print(value) {
 }
 
 function usage() {
-  throw new Error('Usage: npm start -- <login|check|organizations|locations|reviews|reply> [--account ID]');
+  throw new Error('Usage: npm start -- <login|check|organizations|locations|reviews|m0-read|restore-check|reply> [--account ID]');
+}
+
+async function runManualRead(runtime, values) {
+  const chainId = required(values, 'chain-id');
+  const chainPermalink = required(values, 'chain-permalink');
+  const organizations = await runtime.execute(() => runtime.client.discoverOrganizations());
+  const chain = organizations.find((organization) => organization.chainId === String(chainId) || organization.permanentId === String(chainPermalink));
+  if (!chain) throw new Error('The requested chain was not returned by organization discovery. Do not continue with location reads.');
+  const branches = await runtime.execute(() => runtime.client.discoverLocations({ chainId, chainPermalink, page: 1 }));
+  if (branches.locations.length < 2) throw new Error('The discovered branch page must contain at least two locations for M0.');
+  const [first, second] = branches.locations;
+  const firstPage = await runtime.execute(() => runtime.client.listReviews({ locationId: first.externalLocationId, page: 1 }));
+  const secondPage = await runtime.execute(() => runtime.client.listReviews({ locationId: first.externalLocationId, page: 2 }));
+  const otherLocation = await runtime.execute(() => runtime.client.listReviews({ locationId: second.externalLocationId, page: 1 }));
+  return {
+    organizations: organizations.length,
+    chainId: chain.chainId,
+    discoveredLocations: [first.externalLocationId, second.externalLocationId],
+    firstPage: firstPage.pager,
+    secondPage: secondPage.pager,
+    otherLocation: otherLocation.pager
+  };
+}
+
+function requireControlledWriteApproval(values) {
+  if (process.env.YANDEX_MANUAL_TESTS !== 'true' || process.env.YANDEX_CONTROLLED_WRITE_APPROVED !== 'true' || values['approved-real-write'] !== 'true') {
+    throw new Error('Controlled write is disabled. It requires YANDEX_MANUAL_TESTS=true, YANDEX_CONTROLLED_WRITE_APPROVED=true, and --approved-real-write true after explicit approval.');
+  }
 }

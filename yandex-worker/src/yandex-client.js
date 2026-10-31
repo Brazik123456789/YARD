@@ -4,9 +4,9 @@ import { extractReplyTokens, normalizeCompany, normalizeLocation, normalizeRevie
 const ORIGIN = 'https://yandex.ru';
 
 export class YandexBusinessClient {
-  constructor(request, { writeHeadersProvider = () => ({}) } = {}) {
+  constructor(request, { requestHeadersProvider = () => undefined } = {}) {
     this.request = request;
-    this.writeHeadersProvider = writeHeadersProvider;
+    this.requestHeadersProvider = requestHeadersProvider;
   }
 
   async checkConnection() {
@@ -50,13 +50,16 @@ export class YandexBusinessClient {
     }
   }
 
-  async writeReply({ locationId, reviewId, text }) {
+  async writeReply({ locationId, reviewId, text, page }) {
     if (!text || text.length > 2500) {
       throw new ProviderError('PROVIDER_CONTRACT_CHANGED', 'Reply text must contain 1 to 2500 characters');
     }
-    const current = await this.#getReviewsPayload(locationId);
+    if (!Number.isInteger(page) || page < 1) {
+      throw new ProviderError('PROVIDER_CONTRACT_CHANGED', 'A positive, explicit review page is required for a controlled write');
+    }
+    const current = await this.#getReviewsPayload(locationId, page);
     const item = current.list.items.find((review) => String(review.id ?? review.cmnt_entity_id) === String(reviewId));
-    if (!item) throw new ProviderError('REVIEW_NOT_FOUND', 'Review was not found in the refreshed first page');
+    if (!item) throw new ProviderError('REVIEW_NOT_FOUND', 'Review was not found in the explicitly requested refreshed page');
     const reviewLocationId = String(item.object?.id ?? '').match(/\/sprav\/([^/?]+)/)?.[1];
     if (reviewLocationId !== String(locationId)) {
       throw new ProviderError('LOCATION_MISMATCH', 'Review does not belong to the requested location');
@@ -70,8 +73,8 @@ export class YandexBusinessClient {
     } catch (error) {
       throw new ProviderError('CSRF_INVALID', 'Fresh Yandex review CSRF values are unavailable for the controlled write', { cause: error });
     }
-    const headers = this.writeHeadersProvider();
-    if (!headers['x-csrf-token'] || !headers['X-Yandex-ICookie']) {
+    const headers = this.requestHeadersProvider();
+    if (!headers?.['x-csrf-token'] || !headers?.['X-Yandex-ICookie']) {
       throw new ProviderError('CSRF_INVALID', 'Fresh request CSRF and Yandex ICookie values are required for a controlled write');
     }
     try {
@@ -88,15 +91,15 @@ export class YandexBusinessClient {
       if (!response.ok()) this.#throwForResponse(response, 'Unable to submit Yandex review reply');
     } catch (error) {
       if (error instanceof ProviderError) throw error;
-      return this.#reconcileUnknownReply(locationId, reviewId, text, error);
+      return this.#reconcileUnknownReply(locationId, reviewId, text, page, error);
     }
 
-    return this.#reconcileReply(locationId, reviewId, text, 'SUBMITTED');
+    return this.#reconcileReply(locationId, reviewId, text, page, 'SUBMITTED');
   }
 
-  async #reconcileUnknownReply(locationId, reviewId, text, originalError) {
+  async #reconcileUnknownReply(locationId, reviewId, text, page, originalError) {
     try {
-      const reconciliation = await this.#reconcileReply(locationId, reviewId, text, 'RECONCILED_AFTER_UNKNOWN_RESULT');
+      const reconciliation = await this.#reconcileReply(locationId, reviewId, text, page, 'RECONCILED_AFTER_UNKNOWN_RESULT');
       if (reconciliation.outcome !== 'NOT_CONFIRMED') return reconciliation;
     } catch (error) {
       if (error instanceof AuthRequiredError) throw error;
@@ -104,8 +107,8 @@ export class YandexBusinessClient {
     throw new UnknownResultError('Yandex reply outcome is unknown; no retry was performed', { cause: originalError });
   }
 
-  async #reconcileReply(locationId, reviewId, text, defaultOutcome) {
-    const payload = await this.#getReviewsPayload(locationId);
+  async #reconcileReply(locationId, reviewId, text, page, defaultOutcome) {
+    const payload = await this.#getReviewsPayload(locationId, page);
     const item = payload.list.items.find((review) => String(review.id ?? review.cmnt_entity_id) === String(reviewId));
     if (item?.owner_comment?.text === text) {
       return { outcome: defaultOutcome, moderationStatus: item.owner_comment.moderation_status };
@@ -113,8 +116,8 @@ export class YandexBusinessClient {
     return { outcome: 'NOT_CONFIRMED' };
   }
 
-  async #getReviewsPayload(locationId) {
-    return this.#getJson(`/sprav/api/${encodeURIComponent(locationId)}/reviews?page=1&ranking=by_time`);
+  async #getReviewsPayload(locationId, page) {
+    return this.#getJson(`/sprav/api/${encodeURIComponent(locationId)}/reviews?page=${page}&ranking=by_time`);
   }
 
   async #getJson(relativePath) {

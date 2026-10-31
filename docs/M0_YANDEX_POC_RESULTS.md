@@ -24,8 +24,8 @@ The manual procedure reads two location IDs sequentially through that request co
 
 - actual authorization after manual login;
 - read access to organizations, branches, and two locations through `APIRequestContext`;
-- session restoration against Yandex after process restart;
-- concrete requirements and lifecycle for request `x-csrf-token` / `X-Yandex-ICookie`;
+- session restoration against Yandex after a distinct new runtime/process starts from encrypted state;
+- whether a live authenticated Yandex Business request consistently exposes the request `x-csrf-token` / `X-Yandex-ICookie` values captured only in memory;
 - one separately approved real reply and the provider's subsequent moderation state.
 
-No real Yandex request is issued by the automated test suite. Session files, request headers, cookies, token values, review text, and account data are excluded from source control and normal CLI output.
+The manual `m0-read` command proves the explicit sequence organizations → approved chain → discovered branches → reviews for two branches, including a second page, without UI switching. `restore-check` is run as a new process after login to test the encrypted-state restore path. A real reply requires both manual-test approval environment variables and `--approved-real-write true`; it refreshes request state from the authenticated browser, targets an explicit review page, and rereads that page after submission. If the browser does not expose fresh request state, the write remains disabled. No real Yandex request is issued by the automated test suite. Session files, request headers, cookies, token values, review text, and account data are excluded from source control and normal CLI output.

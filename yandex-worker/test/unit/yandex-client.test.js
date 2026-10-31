@@ -33,9 +33,21 @@ test('maps a missing fresh review token to CSRF_INVALID without posting', async 
   const client = new YandexBusinessClient({
     get: async () => response({ json: payload }),
     post: async () => assert.fail('must not post')
-  }, { writeHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
+  }, { requestHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
   await assert.rejects(
-    client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' }),
+    client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks', page: 1 }),
+    (error) => error.category === 'CSRF_INVALID'
+  );
+});
+
+test('keeps a controlled write disabled when BrowserContext request state is unavailable', async () => {
+  const payload = { list: { csrf_token: 'reviews', pager: { limit: 20, offset: 0, total: 1 }, items: [{ id: 'r-1', object: { id: '/sprav/116' }, business_answer_csrf_token: 'answer' }] } };
+  const client = new YandexBusinessClient({
+    get: async () => response({ json: payload }),
+    post: async () => assert.fail('must not post')
+  });
+  await assert.rejects(
+    client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks', page: 1 }),
     (error) => error.category === 'CSRF_INVALID'
   );
 });
@@ -52,20 +64,29 @@ test('reconciles an unknown write outcome without retrying the POST', async () =
   const client = new YandexBusinessClient({
     get: async () => response({ json: payload(getCalls++ > 0) }),
     post: async () => { postCalls += 1; throw new Error('socket timeout'); }
-  }, { writeHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
-  const result = await client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' });
+  }, { requestHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
+  const result = await client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks', page: 3 });
   assert.equal(result.outcome, 'RECONCILED_AFTER_UNKNOWN_RESULT');
   assert.equal(postCalls, 1);
+  assert.equal(getCalls, 2);
 });
 
 test('reports unknown when reconciliation cannot confirm the reply', async () => {
   const payload = { list: { csrf_token: 'reviews', pager: { limit: 20, offset: 0, total: 1 }, items: [{ id: 'r-1', object: { id: '/sprav/116' }, business_answer_csrf_token: 'answer' }] } };
-  const client = new YandexBusinessClient({ get: async () => response({ json: payload }), post: async () => { throw new Error('timeout'); } }, { writeHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
-  await assert.rejects(client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' }), UnknownResultError);
+  const client = new YandexBusinessClient({ get: async () => response({ json: payload }), post: async () => { throw new Error('timeout'); } }, { requestHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
+  await assert.rejects(client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks', page: 1 }), UnknownResultError);
 });
 
 test('refuses a reply whose refreshed review belongs to another location', async () => {
   const payload = { list: { csrf_token: 'reviews', pager: { limit: 20, offset: 0, total: 1 }, items: [{ id: 'r-1', object: { id: '/sprav/579' }, business_answer_csrf_token: 'answer' }] } };
-  const client = new YandexBusinessClient({ get: async () => response({ json: payload }), post: async () => assert.fail('must not post') }, { writeHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
-  await assert.rejects(client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' }), (error) => error.category === 'LOCATION_MISMATCH');
+  const client = new YandexBusinessClient({ get: async () => response({ json: payload }), post: async () => assert.fail('must not post') }, { requestHeadersProvider: () => ({ 'x-csrf-token': 'request', 'X-Yandex-ICookie': 'cookie' }) });
+  await assert.rejects(client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks', page: 1 }), (error) => error.category === 'LOCATION_MISMATCH');
+});
+
+test('requires an explicit review page and never assumes the first page for a controlled write', async () => {
+  const client = new YandexBusinessClient({ get: async () => assert.fail('must not read') });
+  await assert.rejects(
+    client.writeReply({ locationId: '116', reviewId: 'r-1', text: 'Thanks' }),
+    (error) => error.category === 'PROVIDER_CONTRACT_CHANGED'
+  );
 });
