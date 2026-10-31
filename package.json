@@ -1,0 +1,17 @@
+{
+  "name": "yard-yandex-connector-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test yandex-worker/test/unit/*.test.js",
+    "test:manual": "node --test yandex-worker/test/manual/*.test.js",
+    "start": "node yandex-worker/src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright": "^1.58.0"
+  }
+}
