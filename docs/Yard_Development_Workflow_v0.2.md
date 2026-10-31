@@ -310,6 +310,8 @@ Blocked:
 - когда проводится review;
 - как работает локальная проверка.
 
+Подробный обязательный протокол передачи статуса между ChatGPT и Codex хранится в [`CODEX_HANDOFF_PROTOCOL.md`](./CODEX_HANDOFF_PROTOCOL.md). Он определяет Issue как coordination/status handoff и PR как место фактической реализации и code review.
+
 ---
 
 ## AGENTS.md
@@ -534,6 +536,7 @@ Codex не должен получать инструкцию:
 - устраняй найденные проблемы;
 - обновляй STATUS.md;
 - фиксируй архитектурные решения в DECISIONS.md/ADR.
+- оставляй status report в связанном GitHub Issue по `docs/CODEX_HANDOFF_PROTOCOL.md`.
 
 Не запрашивай подтверждение на рутинные инженерные решения,
 если они не меняют продуктовые требования или утверждённую архитектуру.
@@ -787,6 +790,8 @@ CI
 Codex Review
       ↓
 fixes
+      ↓
+status report в Issue
       ↓
 CI
       ↓
@@ -1469,6 +1474,8 @@ GitHub является:
 - местом Pull Request;
 - местом code review и CI.
 
+Детальный порядок передачи работы и status reports определён в [`CODEX_HANDOFF_PROTOCOL.md`](./CODEX_HANDOFF_PROTOCOL.md).
+
 Codex Cloud является удалённым исполнителем разработки.
 
 Основной процесс:
@@ -1491,6 +1498,8 @@ CI
 ChatGPT / Codex Review
       ↓
 Fixes
+      ↓
+Codex status report in Issue
       ↓
 CI green
       ↓
@@ -1581,6 +1590,7 @@ Implement GitHub Issue #<number>.
 Before starting, read:
 - AGENTS.md
 - docs/YARD_TZ_v0.3.md
+- docs/CODEX_HANDOFF_PROTOCOL.md
 - relevant architecture/discovery documents.
 
 First inspect the issue and repository.
@@ -1591,12 +1601,17 @@ Run required tests.
 Perform self-review before completion.
 Do not merge to main.
 
+For follow-up findings, continue in the active branch/PR unless explicitly told to create a new one.
+
 When finished:
 - keep commits clean;
 - prepare/update a Pull Request;
 - summarize implementation;
 - list tests executed;
 - list known limitations and open questions.
+- post the required status report in the linked GitHub Issue.
+
+If GitHub API permissions block an Issue comment or PR metadata update, Codex reports the exact unavailable operation as a tooling limitation and does not create a duplicate PR as a workaround.
 ```
 
 Большие требования не нужно дублировать в Codex prompt, если они уже находятся в Issue и документации репозитория.
@@ -1633,6 +1648,15 @@ codex/18-subscription-entitlements
 ```text
 Issue = что нужно сделать
 Pull Request = что реально сделано
+```
+
+Каналы не смешиваются:
+
+```text
+Issue comments = coordination, status, blockers, handoff
+PR comments/reviews = code findings и обсуждение реализации
+Repository docs = долгоживущие правила и архитектура
+Codex chat = временная runtime-коммуникация, не source of truth
 ```
 
 PR должен содержать:
@@ -1719,7 +1743,7 @@ Review не должен ограничиваться пересказом от�
 
 # 56. Findings из review
 
-Findings желательно фиксировать непосредственно в Pull Request или связанном Issue.
+Code findings и обсуждение реализации фиксируются непосредственно в Pull Request. Coordination decisions, blockers и status handoff фиксируются в связанном Issue.
 
 Приоритеты:
 
@@ -1763,6 +1787,7 @@ Do not ignore findings without explaining why.
 Run the full relevant test suite again.
 Perform self-review.
 Update the PR summary if behavior changed.
+Post the required status report in the linked Issue.
 Do not merge.
 ```
 
@@ -1772,6 +1797,8 @@ Do not merge.
 new commits
 ↓
 PR updated
+↓
+Codex status report in Issue
 ↓
 CI
 ↓
@@ -1974,21 +2001,23 @@ GitHub должен хранить передачу работы между уч
 
 6. Codex создаёт/обновляет Pull Request.
 
-7. CI проверяет PR.
+7. После каждого implementation/fix pass Codex оставляет status report в Issue.
 
-8. ChatGPT выполняет независимый review.
+8. CI проверяет PR.
 
-9. Codex исправляет findings.
+9. ChatGPT выполняет независимый review.
 
-10. CI запускается повторно.
+10. Codex исправляет findings в существующей branch/PR и снова пишет status report в Issue.
 
-11. При необходимости review повторяется.
+11. CI запускается повторно.
 
-12. Азамат выполняет merge.
+12. При необходимости review повторяется.
 
-13. STATUS.md / IMPLEMENTATION_PLAN.md обновляются.
+13. Азамат выполняет merge.
 
-14. Берётся следующий Issue.
+14. STATUS.md / IMPLEMENTATION_PLAN.md обновляются.
+
+15. Берётся следующий Issue.
 ```
 
 ---
